@@ -1,18 +1,36 @@
 CLIENT_ID = "zU4XHVVkc2tDPo4t"
 CLIENT_SECRET = "VJKhDFqJPqvsPVNBV6ukXTJmwlvbttP7wlMlrc72se4"
-API_URL_BASE = "https://api.tidalhifi.com/v1"
-AUTH_URL_BASE = "https://auth.tidal.com/v1/oauth2"
-
 
 from objects import *
+from typing import Tuple
 import requests
 import time
 import random
 import json
+import base64
+import os
 
 
 class scraper:
-    def __init__(self, authfile: str):
+    def __init__(
+        self,
+        quality: str,
+        redownload: bool = False,
+        authUrlBase: str = "https://auth.tidal.com/v1/oauth2",
+        apiUrlBase: str = "https://api.tidalhifi.com/v1",
+        clientToken: tuple = (CLIENT_ID, CLIENT_SECRET),
+        downloadPath: str = "~/Downloads",
+        cachePath: str = "~/.cache",
+    ):
+        self.quality = quality
+        self.redownload = redownload
+        self.authUrlBase = authUrlBase
+        self.apiUrlBase = apiUrlBase
+        self.apiUrlBase = apiUrlBase
+        self.clientToken = clientToken
+        self.downloadPath = downloadPath
+        self.cachePath = cachePath
+        authfile = self.cachePath + "/auth.json"
         try:
             with open(authfile, "rb") as f:
                 a = json.load(f)
@@ -29,7 +47,10 @@ class scraper:
                 json.dump(self.auth.__dict__, f)
 
     def post(self, url: str, data: dict) -> dict:
-        return requests.post(url, data=data, auth=(CLIENT_ID, CLIENT_SECRET)).json()
+        return requests.post(url, data=data, auth=self.clientToken).json()
+
+    def retrieve(self, url: str, path: str) -> None:
+        # TODO: Write function to retrieve stream
 
     def get(self, url: str, params: dict = {}) -> dict:
         headers = {"authorization": f"Bearer {self.auth.accessToken}"}
@@ -78,8 +99,8 @@ class scraper:
 
     def loginByWeb(self) -> Auth:
         result = self.post(
-            f"{AUTH_URL_BASE}/device_authorization",
-            {"client_id": CLIENT_ID, "scope": "r_usr+w_usr+w_sub"},
+            f"{self.authUrlBase}/device_authorization",
+            {"client_id": self.clientToken[0], "scope": "r_usr+w_usr+w_sub"},
         )
         if "status" in result and result["status"] != 200:
             raise Exception("Client ID not accepted by Tidal")
@@ -99,9 +120,9 @@ class scraper:
         while elapsed < timeout and not auth:
             elapsed = time.time() - start
             result = self.post(
-                f"{AUTH_URL_BASE}/token",
+                f"{self.authUrlBase}/token",
                 {
-                    "client_id": CLIENT_ID,
+                    "client_id": self.clientToken[0],
                     "device_code": login.deviceCode,
                     "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
                     "scope": "r_usr+w_usr+w_sub",
@@ -126,16 +147,49 @@ class scraper:
                 return auth
         raise Exception("Failed to log in")
 
-    def getTracks(self, obj) -> list:
-        url = API_URL_BASE
-        if type(obj) is Album:
-            url += f"/albums/{str(obj.id)}/items"
-        elif type(obj) is Playlist:
-            url += f"/playlists/{obj.uuid}/items"
-        else:
-            raise Exception("Tried to get tracks from incorrect object")
-        return self.getItems(url)
+    def getTracks(self, album: Album) -> list:
+        return self.getItems(f"{self.apiUrlBase}/albums/{str(album.id)}/items")
+
+    def getAlbumFsPath(self, album: Album) -> str:
+        return self.downloadPath + album.title
+
+    def getTrackFsPath(self, track) -> str:
+        return f"{self.downloadPath}/{self.getAlbumFsPath(track.album)}/[{track.number}] {track.title}"
+
+    def getStreamInfo(self, track: Track) -> StreamInfo:
+        response = self.get(
+            f"tracks/{str(track.id)}/playbackinfopostpaywall",
+            {
+                "audioquality": self.quality,
+                "playbackmode": "STREAM",
+                "assetpresentation": "FULL",
+            },
+        )
+        if "vnd.tidal.bt" in response["manifestMimeType"]:
+            manifest = json.loads(
+                base64.b64decode(response["manifest"]).decode("utf-8")
+            )
+            return StreamInfo(
+                response["trackid"],
+                response["audioQuality"],
+                manifest["codecs"],
+                manifest["keyId"] if "keyId" in manifest else "",
+                manifest["urls"][0],
+            )
+        raise Exception("Can't read manifest of type {response['manifestMimeType']}")
+
+    def downloadTrack(self, track, partSize=1048576) -> Tuple[bool, str]:
+        try:
+            stream = self.getStreamInfo(track.id)
+            path = self.getTrackFsPath(track)
+            print(f"Starting download of track \"{track.title}\"")
+            if not self.redownload and os.path.exists(path):
+                print(f"Skipping download, \"{track.title}\" already exists")
+                return True, "exists"
+            
+
 
     def downloadAlbum(self, album: Album):
         tracks = self.getTracks(album)
-        # TODO: Continue working here
+        for i, track in enumerate(tracks):
+            self.downloadTrack(track)
