@@ -80,8 +80,6 @@ def download_track(
         dl_path = f"{DL_PATH}/{track.album.name}/{track.name}.part"  # type: ignore[reportOptionalMemberAccess]
         dest_path = f"{DEST_PATH}/{track.album.name}/{track.name}"  # type: ignore[reportOptionalMemberAccess]
 
-        print(f"Downloading {track.name} - {track.artist.name}")  # type: ignore[reportOptionalMemberAccess]
-
         if os.path.exists(dest_path) and SKIP_DOWNLOADED:
             print(dest_path + " exists!")
             return True, "Skipping downloaded song"
@@ -147,7 +145,7 @@ favorites = tidalapi.user.Favorites(session, user.id)
 tracks = favorites.tracks()
 
 for track in tracks:
-    print(f"Downloading {track.album.name} by {track.artist}")
+    print(f"Downloading {track.name} - {track.artist.name}")  # type: ignore[reportOptionalMemberAccess]
     check, msg = download_track(track)
     print(msg)
     time.sleep(3)
