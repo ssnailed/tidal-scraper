@@ -80,7 +80,7 @@ def download_track(
     try:
         album_name = re.sub('/', ' ', track.album.name)  # type: ignore[reportOptionalMemberAccess]
         track_name = re.sub('/', ' ', track.name)  # type: ignore[reportOptionalMemberAccess]
-        dl_path = f"{DL_PATH}/{album_name}/{track_name}.part"  # type: ignore[reportOptionalMemberAccess]
+        dl_path = f"{DL_PATH}/{track_name}.part"  # type: ignore[reportOptionalMemberAccess]
         dest_path = f"{DEST_PATH}/{album_name}/{track_name}"  # type: ignore[reportOptionalMemberAccess]
 
         if os.path.exists(dest_path) and SKIP_DOWNLOADED:
