@@ -82,7 +82,7 @@ def download_track(
 
         if os.path.exists(dest_path) and SKIP_DOWNLOADED:
             print(dest_path + " exists!")
-            return True, "Skipping downloaded song"
+            return False, "Skipping downloaded song"
 
         stream = track.stream()
 
@@ -148,4 +148,5 @@ for track in tracks:
     print(f"Downloading {track.name} - {track.artist.name}")  # type: ignore[reportOptionalMemberAccess]
     check, msg = download_track(track)
     print(msg)
-    time.sleep(3)
+    if check:
+        time.sleep(3)
