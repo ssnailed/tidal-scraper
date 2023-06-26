@@ -1,18 +1,24 @@
-#!/bin/env python
+#!/bin/env python3
 import tidalapi
 import aigpy
 import aigpy.downloadHelper
 import json
 import sys
 import base64
+import os
+import time
 from Crypto.Cipher import AES
 from Crypto.Util import Counter
 from typing import Tuple
 from datetime import datetime
 
-USER_ID = 188721652
-DL_PATH = "/home/luca/.cache/tidal_scrape"
-DEST_PATH = "/home/luca/Music"
+USER_ID = os.getenv("USER_ID")
+# Must be on same disk unless you replace the
+# os.replace on line 105 with something better
+DL_PATH = os.getenv("DL_PATH")
+DEST_PATH = os.getenv("DEST_PATH")
+AUTH_PATH = os.getenv("AUTH_PATH")
+SKIP_DOWNLOADED = bool(os.getenv("SKIP_DOWNLOADED"))
 
 config = tidalapi.Config(quality=tidalapi.Quality.lossless)
 session = tidalapi.Session(config)
@@ -45,8 +51,9 @@ def decrypt_file(input_file, output_file, key, nonce) -> None:
             o.write(data)
 
 
-def set_metadata(track: tidalapi.Track, file: str):
-    # This function could be more fleshed out (lyrics, covers) but I will leave that to external programs
+def set_metadata(track: tidalapi.Track, file: str) -> None:
+    # This function could be more fleshed out (lyrics, covers)
+    # but I will leave that to external programs
     tagger = aigpy.tag.TagTool(file)
 
     tagger.title = track.name
@@ -73,6 +80,12 @@ def download_track(
         dl_path = f"{DL_PATH}/{track.album.name}/{track.name}.part"  # type: ignore[reportOptionalMemberAccess]
         dest_path = f"{DEST_PATH}/{track.album.name}/{track.name}"  # type: ignore[reportOptionalMemberAccess]
 
+        print(f"Downloading {track.name} - {track.artist.name}")  # type: ignore[reportOptionalMemberAccess]
+
+        if os.path.exists(dest_path) and SKIP_DOWNLOADED:
+            print(dest_path + " exists!")
+            return True, "Skipping downloaded song"
+
         stream = track.stream()
 
         stream.manifest = json.loads(base64.b64decode(stream.manifest))
@@ -88,30 +101,35 @@ def download_track(
         if not check:
             return False, str(err)
 
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
         if key:
             key, nonce = decrypt_token(key)
             decrypt_file(dl_path, dest_path, key, nonce)
+        else:
+            os.replace(dl_path, dest_path)
 
         set_metadata(track, dest_path)
 
-        return True, ""
-    except Exception as err:
-        return False, str(err)
+        return True, "Successfully downloaded!"
+    except Exception as msg:
+        return False, str(msg)
 
 
+auth_path = f"{AUTH_PATH}/auth.json"
 try:
-    with open("auth.json", "rb") as f:
+    with open(auth_path, "rb") as f:
         a = json.load(f)
         expiry_time = a["expiry_time"].split(".", 1)[0]
         expiry_time = datetime.strptime(expiry_time, "%Y-%m-%d %H:%M:%S")
         session.load_oauth_session(
             a["token_type"], a["access_token"], a["refresh_token"], expiry_time
         )
+    os.chmod(auth_path, 0o600)
 except (OSError, IndexError):
     session.login_oauth_simple()
 
 if session.check_login():
-    with open("auth.json", "w") as f:
+    with open(auth_path, "w") as f:
         json.dump(
             {
                 "token_type": session.token_type,
@@ -124,13 +142,12 @@ if session.check_login():
 else:
     sys.exit("Failed to log in")
 
-
 user = session.get_user(USER_ID)
 favorites = tidalapi.user.Favorites(session, user.id)
 tracks = favorites.tracks()
 
 for track in tracks:
     print(f"Downloading {track.album.name} by {track.artist}")
-    check, err = download_track(track)
-    if not check:
-        print(err)
+    check, msg = download_track(track)
+    print(msg)
+    time.sleep(3)
