@@ -7,6 +7,7 @@ import sys
 import base64
 import os
 import time
+import re
 from Crypto.Cipher import AES
 from Crypto.Util import Counter
 from typing import Tuple
@@ -77,8 +78,10 @@ def download_track(
     partSize: int = 1048576,
 ) -> Tuple[bool, str]:
     try:
-        dl_path = f"{DL_PATH}/{track.album.name}/{track.name}.part"  # type: ignore[reportOptionalMemberAccess]
-        dest_path = f"{DEST_PATH}/{track.album.name}/{track.name}"  # type: ignore[reportOptionalMemberAccess]
+        album_name = re.sub('/', ' ', track.album.name)  # type: ignore[reportOptionalMemberAccess]
+        track_name = re.sub('/', ' ', track.name)  # type: ignore[reportOptionalMemberAccess]
+        dl_path = f"{DL_PATH}/{album_name}/{track_name}.part"  # type: ignore[reportOptionalMemberAccess]
+        dest_path = f"{DEST_PATH}/{album_name}/{track_name}"  # type: ignore[reportOptionalMemberAccess]
 
         if os.path.exists(dest_path) and SKIP_DOWNLOADED:
             print(dest_path + " exists!")
