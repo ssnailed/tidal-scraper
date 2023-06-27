@@ -1,6 +1,6 @@
 #!/bin/env python3
 import tidalapi
-import aigpy
+import aigpy.tagHelper
 import aigpy.downloadHelper
 import json
 import sys
@@ -55,7 +55,7 @@ def decrypt_file(input_file, output_file, key, nonce) -> None:
 def set_metadata(track: tidalapi.Track, file: str) -> None:
     # This function could be more fleshed out (lyrics, covers)
     # but I will leave that to external programs
-    tagger = aigpy.tag.TagTool(file)
+    tagger = aigpy.tagHelper.TagTool(file)
 
     tagger.title = track.name
     tagger.artist = list(map(lambda artist: artist.name, track.artists))  # type: ignore[reportOptionalMemberAccess]
@@ -70,8 +70,7 @@ def set_metadata(track: tidalapi.Track, file: str) -> None:
     if tagger.totaldisc <= 1:
         tagger.totaltrack = track.album.num_tracks  # type: ignore[reportOptionalMemberAccess]
 
-    coverpath = f"{DEST_PATH}/{track.album.name}/cover.png"  # type: ignore[reportOptionalMemberAccess]
-    tagger.save(coverpath)
+    tagger.save()
 
 
 def download_track(
@@ -82,8 +81,9 @@ def download_track(
     try:
         album_name = re.sub("/", " ", track.album.name)  # type: ignore[reportOptionalMemberAccess]
         track_name = re.sub("/", " ", track.name)  # type: ignore[reportOptionalMemberAccess]
-        dl_path = f"{DL_PATH}/{track_name}.part"  # type: ignore[reportOptionalMemberAccess]
-        dest_path = f"{DEST_PATH}/{album_name}/{track_name}"  # type: ignore[reportOptionalMemberAccess]
+        artist_name = re.sub("/", " ", track.artist.name)  # type: ignore[reportOptionalMemberAccess]
+        dl_path = f"{DL_PATH}/{track.track_num}{track_name}.part"  # type: ignore[reportOptionalMemberAccess]
+        dest_path = f"{DEST_PATH}/{artist_name}/{album_name}/{track.track_num} {track_name}"  # type: ignore[reportOptionalMemberAccess]
 
         if os.path.exists(dest_path) and SKIP_DOWNLOADED:
             print(dest_path + " exists!")
@@ -94,6 +94,14 @@ def download_track(
 
         stream.manifest = json.loads(base64.b64decode(stream.manifest))
         url = stream.manifest["urls"][0]
+        print(url)
+        if '.flac' in url:
+            dest_path += '.flac'
+        elif '.mp4' in url:
+            if 'ac4' in stream.codec or 'mha1' in stream.codec:
+                dest_path += '.mp4'
+            else:
+                dest_path += '.m4a'
         try:
             key = stream.manifest["keyId"]
         except KeyError:
@@ -123,11 +131,11 @@ def download_track(
 def download_cover(album: tidalapi.Album) -> None:
     print(f"Downloading cover for {album.name}")  # type: ignore[reportOptionalMemberAccess]
     album_name = re.sub("/", " ", album.name)  # type: ignore[reportOptionalMemberAccess]
-    dest_path = f"{DEST_PATH}/{album_name}/cover.png"  # type: ignore[reportOptionalMemberAccess]
+    artist_name = re.sub("/", " ", track.artist.name)  # type: ignore[reportOptionalMemberAccess]
+    dest_path = f"{DEST_PATH}/{artist_name}/{album_name}/cover.png"  # type: ignore[reportOptionalMemberAccess]
     url = album.image(1280)
 
     if os.path.exists(dest_path) and SKIP_DOWNLOADED:
-        print(dest_path + " exists!")
         print("Skipping downloaded cover")
         return
 
@@ -164,13 +172,11 @@ else:
 user = session.get_user(USER_ID)
 favorites = tidalapi.user.Favorites(session, user.id)
 albums = favorites.albums()
-dl_tracks = []
 for album in albums:
-    print(f"Queuing {album.name}")
-    dl_tracks += album.tracks() 
-
-for track in dl_tracks:
-    download_cover(track.album)
-    check, _ = download_track(track)
-    if check:
-        time.sleep(3)
+    print(f"Starting {album.name}")
+    tracks = album.tracks() 
+    for track in tracks:
+        download_cover(track.album)
+        check, _ = download_track(track)
+        if check:
+            time.sleep(3)
