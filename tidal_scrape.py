@@ -94,7 +94,6 @@ def download_track(
 
         stream.manifest = json.loads(base64.b64decode(stream.manifest))
         url = stream.manifest["urls"][0]
-        print(url)
         if '.flac' in url:
             dest_path += '.flac'
         elif '.mp4' in url:
