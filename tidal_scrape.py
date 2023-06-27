@@ -178,6 +178,8 @@ for i, album in enumerate(albums):
     for j, track in enumerate(tracks):
         print(f"Downloading {j + 1}/{num_tracks}: {track.name}")  # type: ignore[reportOptionalMemberAccess]
         check, _ = download_track(track)
-        # if check:
-        #     time.sleep(1)
+        if check:
+            time.sleep(2)
+        else:
+            time.sleep(0.5)
     print()
