@@ -148,6 +148,7 @@ favorites = tidalapi.user.Favorites(session, user.id)
 albums = favorites.albums()
 dl_tracks = []
 for album in albums:
+    print(f"Queuing album {album.name}")
     tracks = album.tracks()
     dl_tracks += tracks
 
