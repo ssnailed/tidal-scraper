@@ -145,9 +145,13 @@ else:
 
 user = session.get_user(USER_ID)
 favorites = tidalapi.user.Favorites(session, user.id)
-tracks = favorites.tracks()
+albums = favorites.albums()
+dl_tracks = []
+for album in albums:
+    tracks = album.tracks()
+    dl_tracks += tracks
 
-for track in tracks:
+for track in dl_tracks:
     print(f"Downloading {track.name} - {track.artist.name}")  # type: ignore[reportOptionalMemberAccess]
     check, msg = download_track(track)
     print(msg)
