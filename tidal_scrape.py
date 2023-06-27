@@ -81,9 +81,9 @@ def download_track(
     try:
         album_name = re.sub("/", " ", track.album.name)  # type: ignore[reportOptionalMemberAccess]
         track_name = re.sub("/", " ", track.name)  # type: ignore[reportOptionalMemberAccess]
-        artist_name = re.sub("/", " ", track.album.artist.name)  # type: ignore[reportOptionalMemberAccess]
+        # artist_name = re.sub("/", " ", track.album.artist.name)  # type: ignore[reportOptionalMemberAccess]
         dl_path = f"{DL_PATH}/{track.track_num} {track_name}.part"  # type: ignore[reportOptionalMemberAccess]
-        dest_path = f"{DEST_PATH}/{artist_name}/{album_name}/{track.track_num} {track_name}"  # type: ignore[reportOptionalMemberAccess]
+        dest_path = f"{DEST_PATH}/{album_name}/{track.track_num} {track_name}"  # type: ignore[reportOptionalMemberAccess]
 
         for ext in ['.flac', '.mpf', '.m4a', '']:
             if os.path.exists(dest_path + ext) and SKIP_DOWNLOADED:
@@ -129,8 +129,8 @@ def download_track(
 
 def download_cover(album: tidalapi.Album) -> None:
     album_name = re.sub("/", " ", album.name)  # type: ignore[reportOptionalMemberAccess]
-    artist_name = re.sub("/", " ", album.artist.name)  # type: ignore[reportOptionalMemberAccess]
-    dest_path = f"{DEST_PATH}/{artist_name}/{album_name}/cover.png"  # type: ignore[reportOptionalMemberAccess]
+    # artist_name = re.sub("/", " ", album.artist.name)  # type: ignore[reportOptionalMemberAccess]
+    dest_path = f"{DEST_PATH}/{album_name}/cover.png"  # type: ignore[reportOptionalMemberAccess]
     url = album.image(1280)
 
     if os.path.exists(dest_path) and SKIP_DOWNLOADED:
