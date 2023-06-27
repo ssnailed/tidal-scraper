@@ -70,7 +70,7 @@ def set_metadata(track: tidalapi.Track, file: str) -> None:
     if tagger.totaldisc <= 1:
         tagger.totaltrack = track.album.num_tracks  # type: ignore[reportOptionalMemberAccess]
 
-    coverpath = track.album.cover(1280)  # type: ignore[reportOptionalMemberAccess]
+    coverpath = f"{DEST_PATH}/{track.album.name}/cover.png"  # type: ignore[reportOptionalMemberAccess]
     tagger.save(coverpath)
 
 
@@ -122,6 +122,7 @@ def download_track(
 
 def download_cover(album: tidalapi.Album) -> None:
     print(f"Downloading cover for {album.name}")  # type: ignore[reportOptionalMemberAccess]
+    album_name = re.sub("/", " ", album.name)  # type: ignore[reportOptionalMemberAccess]
     dest_path = f"{DEST_PATH}/{album_name}/cover.png"  # type: ignore[reportOptionalMemberAccess]
     url = album.image(1280)
 
@@ -164,10 +165,12 @@ user = session.get_user(USER_ID)
 favorites = tidalapi.user.Favorites(session, user.id)
 albums = favorites.albums()
 dl_tracks = []
-for album in albums:
-    download_cover(album)
-    tracks = album.tracks()
-    dl_tracks += tracks
+# for album in albums:
+#     download_cover(album)
+#     dl_tracks += album.tracks() 
+album = albums[0]
+download_cover(album)
+dl_tracks += album.tracks() 
 
 for track in dl_tracks:
     check, _ = download_track(track)
