@@ -85,6 +85,11 @@ def download_track(
         dl_path = f"{DL_PATH}/{track.track_num} {track_name}.part"  # type: ignore[reportOptionalMemberAccess]
         dest_path = f"{DEST_PATH}/{artist_name}/{album_name}/{track.track_num} {track_name}"  # type: ignore[reportOptionalMemberAccess]
 
+        for ext in ['.flac', '.mpf', '.m4a', '']:
+            if os.path.exists(dest_path + ext) and SKIP_DOWNLOADED:
+                print("Skipping downloaded song")
+                return False, "Skipping downloaded song"
+
         stream = track.stream()
         stream.manifest = json.loads(base64.b64decode(stream.manifest))
         url = stream.manifest["urls"][0]
@@ -95,10 +100,6 @@ def download_track(
                 dest_path += '.mp4'
             else:
                 dest_path += '.m4a'
-
-        if os.path.exists(dest_path) and SKIP_DOWNLOADED:
-            print("Skipping downloaded song")
-            return False, "Skipping downloaded song"
 
         try:
             key = stream.manifest["keyId"]
@@ -168,15 +169,15 @@ else:
 user = session.get_user(USER_ID)
 favorites = tidalapi.user.Favorites(session, user.id)
 albums = favorites.albums()
+num_albums = len(albums)
 for i, album in enumerate(albums):
-    print(f"Starting {i}/{len(albums)}: {album.name} - {album.artist.name}")
+    print(f"Starting {i + 1}/{num_albums}: {album.name} - {album.artist.name}")
     download_cover(album)
     tracks = album.tracks() 
+    num_tracks = len(tracks)
     for j, track in enumerate(tracks):
-        print(f"Downloading {j}/{len(tracks)}: {track.track_num} - {track.name}")  # type: ignore[reportOptionalMemberAccess]
+        print(f"Downloading {j + 1}/{num_tracks}: {track.name}")  # type: ignore[reportOptionalMemberAccess]
         check, _ = download_track(track)
-        if check:
-            time.sleep(3)
-        else:
-            time.sleep(0.5)
-    print("\n")
+        # if check:
+        #     time.sleep(1)
+    print()
