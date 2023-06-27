@@ -165,12 +165,9 @@ user = session.get_user(USER_ID)
 favorites = tidalapi.user.Favorites(session, user.id)
 albums = favorites.albums()
 dl_tracks = []
-# for album in albums:
-#     download_cover(album)
-#     dl_tracks += album.tracks() 
-album = albums[0]
-download_cover(album)
-dl_tracks += album.tracks() 
+for album in albums:
+    download_cover(album)
+    dl_tracks += album.tracks() 
 
 for track in dl_tracks:
     check, _ = download_track(track)
