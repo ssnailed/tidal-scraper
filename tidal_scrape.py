@@ -177,4 +177,6 @@ for i, album in enumerate(albums):
         check, _ = download_track(track)
         if check:
             time.sleep(3)
+        else:
+            time.sleep(0.5)
     print("\n")
