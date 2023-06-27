@@ -17,10 +17,10 @@ from datetime import datetime
 with open("conf.yml", "r") as f:
     conf = yaml.safe_load(f)
     USER_ID = conf["user id"]
-    DL_PATH = conf["dl dir"]
-    DEST_PATH = os.getenv("dest dir")
-    AUTH_PATH = os.getenv("authfile dir")
-    SKIP_DOWNLOADED = bool(os.getenv("skip existing"))
+    DL_PATH = conf["dl dir"] or '.'
+    DEST_PATH = conf["dest dir"] or '.'
+    AUTH_PATH = conf["authfile dir"] or '.'
+    SKIP_DOWNLOADED = conf["skip existing"]
 
 config = tidalapi.Config(quality=tidalapi.Quality.lossless)
 session = tidalapi.Session(config)
