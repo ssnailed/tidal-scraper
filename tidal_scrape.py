@@ -174,7 +174,7 @@ for i, album in enumerate(albums):
     download_cover(album)
     tracks = album.tracks() 
     for j, track in enumerate(tracks):
-        print(f"Downloading {i}/{len(tracks)}: {track.track_num} - {track.name}")  # type: ignore[reportOptionalMemberAccess]
+        print(f"Downloading {j}/{len(tracks)}: {track.track_num} - {track.name}")  # type: ignore[reportOptionalMemberAccess]
         check, _ = download_track(track)
         if check:
             time.sleep(3)
