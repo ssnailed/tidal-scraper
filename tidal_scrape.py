@@ -97,7 +97,6 @@ def download_track(
                 dest_path += '.m4a'
 
         if os.path.exists(dest_path) and SKIP_DOWNLOADED:
-            print(dest_path + " exists!")
             print("Skipping downloaded song")
             return False, "Skipping downloaded song"
 
