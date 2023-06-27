@@ -70,21 +70,24 @@ def set_metadata(track: tidalapi.Track, file: str) -> None:
     if tagger.totaldisc <= 1:
         tagger.totaltrack = track.album.num_tracks  # type: ignore[reportOptionalMemberAccess]
 
-    tagger.save()
+    coverpath = track.album.cover(1280)  # type: ignore[reportOptionalMemberAccess]
+    tagger.save(coverpath)
 
 
 def download_track(
     track: tidalapi.Track,
     partSize: int = 1048576,
 ) -> Tuple[bool, str]:
+    print(f"Downloading {track.name} - {track.artist.name}")  # type: ignore[reportOptionalMemberAccess]
     try:
-        album_name = re.sub('/', ' ', track.album.name)  # type: ignore[reportOptionalMemberAccess]
-        track_name = re.sub('/', ' ', track.name)  # type: ignore[reportOptionalMemberAccess]
+        album_name = re.sub("/", " ", track.album.name)  # type: ignore[reportOptionalMemberAccess]
+        track_name = re.sub("/", " ", track.name)  # type: ignore[reportOptionalMemberAccess]
         dl_path = f"{DL_PATH}/{track_name}.part"  # type: ignore[reportOptionalMemberAccess]
         dest_path = f"{DEST_PATH}/{album_name}/{track_name}"  # type: ignore[reportOptionalMemberAccess]
 
         if os.path.exists(dest_path) and SKIP_DOWNLOADED:
             print(dest_path + " exists!")
+            print("Skipping downloaded song")
             return False, "Skipping downloaded song"
 
         stream = track.stream()
@@ -113,7 +116,21 @@ def download_track(
 
         return True, "Successfully downloaded!"
     except Exception as msg:
+        print(str(msg))
         return False, str(msg)
+
+
+def download_cover(album: tidalapi.Album) -> None:
+    print(f"Downloading cover for {album.name}")  # type: ignore[reportOptionalMemberAccess]
+    dest_path = f"{DEST_PATH}/{album_name}/cover.png"  # type: ignore[reportOptionalMemberAccess]
+    url = album.image(1280)
+
+    if os.path.exists(dest_path) and SKIP_DOWNLOADED:
+        print(dest_path + " exists!")
+        print("Skipping downloaded cover")
+        return
+
+    aigpy.net.downloadFile(url, dest_path)
 
 
 auth_path = f"{AUTH_PATH}/auth.json"
@@ -148,13 +165,11 @@ favorites = tidalapi.user.Favorites(session, user.id)
 albums = favorites.albums()
 dl_tracks = []
 for album in albums:
-    print(f"Queuing album {album.name}")
+    download_cover(album)
     tracks = album.tracks()
     dl_tracks += tracks
 
 for track in dl_tracks:
-    print(f"Downloading {track.name} - {track.artist.name}")  # type: ignore[reportOptionalMemberAccess]
-    check, msg = download_track(track)
-    print(msg)
+    check, _ = download_track(track)
     if check:
         time.sleep(3)
