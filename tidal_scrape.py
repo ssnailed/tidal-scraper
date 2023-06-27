@@ -85,13 +85,7 @@ def download_track(
         dl_path = f"{DL_PATH}/{track.track_num}{track_name}.part"  # type: ignore[reportOptionalMemberAccess]
         dest_path = f"{DEST_PATH}/{artist_name}/{album_name}/{track.track_num} {track_name}"  # type: ignore[reportOptionalMemberAccess]
 
-        if os.path.exists(dest_path) and SKIP_DOWNLOADED:
-            print(dest_path + " exists!")
-            print("Skipping downloaded song")
-            return False, "Skipping downloaded song"
-
         stream = track.stream()
-
         stream.manifest = json.loads(base64.b64decode(stream.manifest))
         url = stream.manifest["urls"][0]
         if '.flac' in url:
@@ -101,6 +95,12 @@ def download_track(
                 dest_path += '.mp4'
             else:
                 dest_path += '.m4a'
+
+        if os.path.exists(dest_path) and SKIP_DOWNLOADED:
+            print(dest_path + " exists!")
+            print("Skipping downloaded song")
+            return False, "Skipping downloaded song"
+
         try:
             key = stream.manifest["keyId"]
         except KeyError:
