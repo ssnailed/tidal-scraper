@@ -1,0 +1,5 @@
+user id:
+dl dir: 'downloading'
+dest dir: 'downloaded'
+authfile dir: ''
+skip existing: true

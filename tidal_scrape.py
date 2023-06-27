@@ -8,18 +8,19 @@ import base64
 import os
 import time
 import re
+import yaml
 from Crypto.Cipher import AES
 from Crypto.Util import Counter
 from typing import Tuple
 from datetime import datetime
 
-USER_ID = os.getenv("USER_ID")
-# Must be on same disk unless you replace the
-# os.replace on line 105 with something better
-DL_PATH = os.getenv("DL_PATH")
-DEST_PATH = os.getenv("DEST_PATH")
-AUTH_PATH = os.getenv("AUTH_PATH")
-SKIP_DOWNLOADED = bool(os.getenv("SKIP_DOWNLOADED"))
+with open("conf.yml", "r") as f:
+    conf = yaml.safe_load(f)
+    USER_ID = conf["user id"]
+    DL_PATH = conf["dl dir"]
+    DEST_PATH = os.getenv("dest dir")
+    AUTH_PATH = os.getenv("authfile dir")
+    SKIP_DOWNLOADED = bool(os.getenv("skip existing"))
 
 config = tidalapi.Config(quality=tidalapi.Quality.lossless)
 session = tidalapi.Session(config)
@@ -77,12 +78,11 @@ def download_track(
     track: tidalapi.Track,
     partSize: int = 1048576,
 ) -> Tuple[bool, str]:
-    print(f"Downloading {track.name} - {track.artist.name}")  # type: ignore[reportOptionalMemberAccess]
     try:
         album_name = re.sub("/", " ", track.album.name)  # type: ignore[reportOptionalMemberAccess]
         track_name = re.sub("/", " ", track.name)  # type: ignore[reportOptionalMemberAccess]
         artist_name = re.sub("/", " ", track.artist.name)  # type: ignore[reportOptionalMemberAccess]
-        dl_path = f"{DL_PATH}/{track.track_num}{track_name}.part"  # type: ignore[reportOptionalMemberAccess]
+        dl_path = f"{DL_PATH}/{track.track_num} {track_name}.part"  # type: ignore[reportOptionalMemberAccess]
         dest_path = f"{DEST_PATH}/{artist_name}/{album_name}/{track.track_num} {track_name}"  # type: ignore[reportOptionalMemberAccess]
 
         stream = track.stream()
@@ -128,14 +128,12 @@ def download_track(
 
 
 def download_cover(album: tidalapi.Album) -> None:
-    print(f"Downloading cover for {album.name}")  # type: ignore[reportOptionalMemberAccess]
     album_name = re.sub("/", " ", album.name)  # type: ignore[reportOptionalMemberAccess]
     artist_name = re.sub("/", " ", album.artist.name)  # type: ignore[reportOptionalMemberAccess]
     dest_path = f"{DEST_PATH}/{artist_name}/{album_name}/cover.png"  # type: ignore[reportOptionalMemberAccess]
     url = album.image(1280)
 
     if os.path.exists(dest_path) and SKIP_DOWNLOADED:
-        print("Skipping downloaded cover")
         return
 
     aigpy.net.downloadFile(url, dest_path)
@@ -171,11 +169,13 @@ else:
 user = session.get_user(USER_ID)
 favorites = tidalapi.user.Favorites(session, user.id)
 albums = favorites.albums()
-for album in albums:
-    print(f"Starting {album.name}")
+for i, album in enumerate(albums):
+    print(f"Starting {i}/{len(albums)}: {album.name} - {album.artist.name}")
     download_cover(album)
     tracks = album.tracks() 
-    for track in tracks:
+    for j, track in enumerate(tracks):
+        print(f"Downloading {i}/{len(tracks)}: {track.track_num} - {track.name}")  # type: ignore[reportOptionalMemberAccess]
         check, _ = download_track(track)
         if check:
             time.sleep(3)
+    print("\n")
