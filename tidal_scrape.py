@@ -173,9 +173,9 @@ favorites = tidalapi.user.Favorites(session, user.id)
 albums = favorites.albums()
 for album in albums:
     print(f"Starting {album.name}")
+    download_cover(album)
     tracks = album.tracks() 
     for track in tracks:
-        download_cover(track.album)
         check, _ = download_track(track)
         if check:
             time.sleep(3)
