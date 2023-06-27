@@ -81,7 +81,7 @@ def download_track(
     try:
         album_name = re.sub("/", " ", track.album.name)  # type: ignore[reportOptionalMemberAccess]
         track_name = re.sub("/", " ", track.name)  # type: ignore[reportOptionalMemberAccess]
-        artist_name = re.sub("/", " ", track.artist.name)  # type: ignore[reportOptionalMemberAccess]
+        artist_name = re.sub("/", " ", track.album.artist.name)  # type: ignore[reportOptionalMemberAccess]
         dl_path = f"{DL_PATH}/{track.track_num} {track_name}.part"  # type: ignore[reportOptionalMemberAccess]
         dest_path = f"{DEST_PATH}/{artist_name}/{album_name}/{track.track_num} {track_name}"  # type: ignore[reportOptionalMemberAccess]
 
