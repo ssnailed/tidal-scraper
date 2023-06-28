@@ -1,0 +1,11 @@
+# All options postfixed "_dir" are expected to have a trailing slash!
+skip_downloaded = true
+error_log = "error.log"
+
+dest_dir = "./downloads/"
+# The following templates are passed an artist, album and track object.
+# Possible attributes can be found here: https://tidalapi.netlify.app/api.html
+# The artist is derived from the album a track is in rather than the track itself.
+dl_dir ="/tmp/tidal-scraper/{track.name}.part"
+album_dir = "{artist.name}/{album.name}/"
+track_name = "{track.track_num}: {track.name}"
