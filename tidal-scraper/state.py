@@ -1,11 +1,13 @@
 import json
 from datetime import datetime
 from tidalapi import session, user, playlist, media, album, artist
-from helper import CONF
+from helper import conf, state_dir
 
 
 class State:
-    def __init__(self, user_id: int, quality: str):
+    def __init__(
+        self, user_id: int, quality: str, dl_state_path: str = state_dir + "/state.json"
+    ):
         match quality:
             case "master":
                 q = session.Quality.master
@@ -20,15 +22,18 @@ class State:
         config = session.Config(quality=q)
         self.user_id = user_id
         self.session = session.Session(config)
-        self.favorites = user.Favorites(self.session, CONF["user_id"])
-        self._state = {
-            "albums": {},
-            "artists": {},
-            "playlists": {},
-            "tracks": {},
-        }
+        self.favorites = user.Favorites(self.session, conf["user_id"])
+        try:
+            self.load_dl_state(dl_state_path)
+        except:
+            self._state = {
+                "albums": {},
+                "artists": {},
+                "playlists": {},
+                "tracks": {},
+            }
 
-    def login(self, auth_file: str | None = CONF["state_dir"] + "auth.json") -> None:
+    def login(self, auth_file: str | None = state_dir + "/auth.json") -> None:
         s = self.session
         try:
             assert auth_file
@@ -40,7 +45,7 @@ class State:
                     a["refresh_token"],
                     datetime.fromtimestamp(a["expiry_time"]),
                 )
-        except (OSError, IndexError, AssertionError):
+        except (FileNotFoundError, IndexError, AssertionError):
             s.login_oauth_simple()
             if (
                 s.token_type
@@ -79,14 +84,19 @@ class State:
 
         self._state[t][obj.id] = downloaded
 
-    def write_state(
-        self, state_file_path: str = CONF["state_dir"] + "state.json"
-    ) -> None:
-        with open(state_file_path, "w") as f:
+    def write_dl_state(self, dl_state_path: str | None = None) -> None:
+        if dl_state_path is None:
+            dl_state_path = state_dir + "/state.json"
+        with open(dl_state_path, "w") as f:
             json.dump(self._state, f)
 
-    def load_state(
-        self, state_file_path: str = CONF["state_dir"] + "state.json"
-    ) -> None:
-        with open(state_file_path, "r") as f:
+    def load_dl_state(self, dl_state_path: str | None = None) -> None:
+        if dl_state_path is None:
+            dl_state_path = state_dir + "/state.json"
+        with open(dl_state_path, "r") as f:
             self._state = json.load(f)
+
+        assert type(self._state["albums"]) is dict[int, bool]
+        assert type(self._state["artists"]) is dict[int, bool]
+        assert type(self._state["playlists"]) is dict[int, bool]
+        assert type(self._state["tracks"]) is dict[int, bool]

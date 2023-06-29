@@ -103,7 +103,7 @@ def __write_mp4(file: mp4.MP4, **kwargs) -> None:
 
 def write(
     fp: BinaryIO,
-    codec: str,
+    mime: str,
     title: str,
     album: str,
     tracknumber: str,
@@ -122,14 +122,13 @@ def write(
     cover_mime: str | None = None,
 ) -> None:
     args = locals()
-    # TODO: Figure out what codecs are sent in the manifest
-    # WARN: This match is currently using placeholders
-    match codec:
-        case "flac":
+    fp.seek(0)
+    match mime:
+        case "audio/flac":
             f = flac.FLAC(fp)
             __write_flac(f, *args)
-        case "aac":
+        case "audio/mp4":
             f = mp4.MP4(fp)
             __write_mp4(f, *args)
         case _:
-            raise Exception(f"Couldn't recognize codec {codec}")
+            raise Exception(f"Couldn't recognize mimetype {mime}")

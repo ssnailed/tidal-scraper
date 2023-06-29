@@ -7,7 +7,6 @@ quality = "lossless"
 user_id =
 
 dest_dir = "./downloads/"
-state_dir = "./state/"
 # The following templates are passed an artist, album and track object.
 # Possible attributes can be found here: https://tidalapi.netlify.app/api.html
 # The artist is derived from the album a track is in rather than the track itself.
