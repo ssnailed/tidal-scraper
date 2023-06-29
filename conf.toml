@@ -1,6 +1,10 @@
 # All options postfixed "_dir" are expected to have a trailing slash!
 skip_downloaded = true
 error_log = "error.log"
+# Quality can be one of "master, lossless, high and low"
+# Keep in mind that you can only get the quality included in your tidal sub
+quality = "lossless"
+user_id = 
 
 dest_dir = "./downloads/"
 # The following templates are passed an artist, album and track object.
