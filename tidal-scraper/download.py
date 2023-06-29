@@ -1,25 +1,30 @@
-import helper
-from helper import CONF, EXTENSIONS
 import metadata
+from helper import CONF, EXTENSIONS, clean_template, log_error
 
 import tidalapi
 import os
 import json
-
+import requests
+import io
+from tqdm import tqdm
 from base64 import b64decode
 from Crypto.Cipher import AES
 from Crypto.Util import Counter
-from typing import Tuple, BinaryIO
-from shutil import move
+from typing import Tuple
+from typing import BinaryIO
+
+# MASTER_KEY = b64decode("UIlTTEMmmLfGowo/UC60x2H45W6MdGgTRfo/umg4754=")
+MASTER_KEY = (
+    b"P\x89SLC&\x98\xb7\xc6\xa3\n?P.\xb4\xc7a\xf8\xe5n\x8cth\x13E\xfa?\xbah8\xef\x9e"
+)
 
 
-def __decode_key_id(key_id) -> Tuple[bytes, bytes]:
-    master_key = b64decode("UIlTTEMmmLfGowo/UC60x2H45W6MdGgTRfo/umg4754=")
+def __decode_key_id(key_id: str) -> Tuple[bytes, bytes]:
     decoded_key_id = b64decode(key_id)
     init_vector = decoded_key_id[:16]
     encrypted_token = decoded_key_id[16:]
 
-    decryptor = AES.new(master_key, AES.MODE_CBC, init_vector)
+    decryptor = AES.new(MASTER_KEY, AES.MODE_CBC, init_vector)
     decrypted_token = decryptor.decrypt(encrypted_token)
 
     key = decrypted_token[:16]
@@ -28,35 +33,34 @@ def __decode_key_id(key_id) -> Tuple[bytes, bytes]:
     return key, nonce
 
 
-def __decrypt_file(
-    input_file: BinaryIO, output_file: BinaryIO, key: bytes, nonce: bytes
-) -> None:
+def __decrypt_file(fp: BinaryIO, key: bytes, nonce: bytes) -> None:
     counter = Counter.new(64, prefix=nonce, initial_value=0)
     decryptor = AES.new(key, AES.MODE_CTR, counter=counter)
-    data = decryptor.decrypt(input_file.read())
-    output_file.write(data)
+    data = decryptor.decrypt(fp)
+    fp.write(data)
 
 
-def set_metadata():
-    pass
+def __download_file(url: str, fp: BinaryIO) -> None:
+    r = requests.get(url, stream=True)
+    r.raise_for_status()
+    total_bytes = int(r.headers.get("content-length", 0))
+    progress = tqdm(total=total_bytes, unit="iB", unit_scale=True)
+    for data in r.iter_content(1024):
+        fp.write(data)
+        progress.update(len(data))
+    progress.close()
 
 
-def download_track(
-    track: tidalapi.Track,
-    album: tidalapi.Album,
-) -> None:
-    dl_path = helper.clean_template(CONF["dl_dir"])
-    dest_path = helper.clean_template(
-        CONF["dest_dir"] + CONF["album_dir"] + CONF["track_name"],
-        track=track,
-        album=album,
-        artist=album.artist,
-    )
+def download_track(track: tidalapi.Track, dest_path: str) -> None:
+    album = track.album
+    assert album
+    dest_path += clean_template(CONF["track_name"], track=track)
+
     try:
         stream = track.stream()
         manifest = json.loads(b64decode(stream.manifest))
+        print(manifest)
         url = manifest["urls"][0]
-        codec = manifest['codecs']
         for ext in EXTENSIONS:
             if ext in url and ext is not ".mp4":
                 dest_path += ext
@@ -66,45 +70,72 @@ def download_track(
                 else:
                     dest_path += ".m4a"
             if os.path.exists(dest_path + ext) and CONF["skip_downloaded"]:
-                print("Skipping downloaded song")
+                print(f"Skipping {album.artist.name} - {track.name}")
                 return
 
-        key_id = manifest.get("keyId", None)
+        assert track.name and album.name
         os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-        with open(dest_path, "wb") as f:
-            # TODO: DOWNLOAD
-            pass
+        with io.BytesIO() as b:
+            print(f"Downloading {album.artist.name} - {track.name}")
+            key_id = manifest.get("keyId", None)
+            __download_file(url, b)
 
         if key_id:
-            key, nonce = __decode_key_id(key_id)
-            with open(dl_path, "rb") as i, open(dest_path, "wb") as o:
-                __decrypt_file(i, o, key, nonce)
-        else:
-            move(dl_path, dest_path)
-
-        assert track.name is not None
-        assert album.name is not None
-        metadata.write(f, codec, track.name, album.name, str(track.track_num), str(album.num_tracks))
+            __decrypt_file(b, *__decode_key_id(key_id))
+            metadata.write(
+                b,
+                manifest["codecs"],
+                track.name,
+                album.name,
+                str(track.track_num),
+                str(album.num_tracks),
+            )
+            with open(dest_path, "wb") as f:
+                data = b.read()
+                f.write(data)
     except:
-        assert album.artist is not None
-        helper.log_error(
-            "Failure while downloading {artist} - {album} - {track}:",
+        log_error(
+            "Failure while downloading {artist} - {track}",
             artist=album.artist.name,
-            album=album.name,
             track=track.name,
         )
-        # stack trace is printed by log_error()
 
 
-def download_cover(album: tidalapi.Album) -> None:
-    dest_path = helper.clean_template(
+def download_cover(
+    obj: tidalapi.Album | tidalapi.Playlist, dest_path: str, size: int
+) -> None:
+    if os.path.exists(dest_path) and CONF["skip_downloaded"]:
+        return
+
+    url = obj.image(size)
+    with open(dest_path, "wb") as f:
+        __download_file(url, f)
+
+
+def download_album(album: tidalapi.Album) -> None:
+    dest_path = clean_template(
         CONF["dest_dir"] + CONF["album_dir"],
         album=album,
         artist=album.artist,
     )
-    url = album.image(1280)
+    download_cover(album, dest_path, CONF["album_image_size"])
+    tracks = album.tracks()
+    for track in tracks:
+        download_track(track, dest_path)
 
-    if os.path.exists(dest_path) and CONF["skip_downloaded"]:
-        return
 
-    # TODO: DOWNLOAD
+def download_playlist(playlist: tidalapi.Playlist) -> None:
+    dest_path = clean_template(
+        CONF["dest_dir"] + CONF["playlist_dir"],
+        playlist=playlist,
+    )
+    download_cover(playlist, dest_path, CONF["playlist_image_size"])
+    tracks = playlist.tracks()
+    for track in tracks:
+        download_track(track, dest_path)
+
+
+def download_artist(artist: tidalapi.Artist) -> None:
+    albums = artist.get_albums()
+    for album in albums:
+        download_album(album)

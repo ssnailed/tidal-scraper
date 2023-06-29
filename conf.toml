@@ -4,12 +4,18 @@ error_log = "error.log"
 # Quality can be one of "master, lossless, high and low"
 # Keep in mind that you can only get the quality included in your tidal sub
 quality = "lossless"
-user_id = 188721652
+user_id =
 
 dest_dir = "./downloads/"
+state_dir = "./state/"
 # The following templates are passed an artist, album and track object.
 # Possible attributes can be found here: https://tidalapi.netlify.app/api.html
 # The artist is derived from the album a track is in rather than the track itself.
-dl_dir ="/tmp/tidal-scraper/{track.name}.part"
 album_dir = "{artist.name}/{album.name}/"
+playlist_dir = "{playlist.name}/"
 track_name = "{track.track_num}: {track.name}"
+
+# One of 160, 320, 480, 640, 750, 1080
+playlist_image_size = 1080
+# One of 80, 160, 320, 640, 1280
+album_image_size = 1280

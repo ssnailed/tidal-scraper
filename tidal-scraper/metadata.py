@@ -1,8 +1,9 @@
-from typing import BinaryIO
 from mutagen import flac, mp4  # , mp3
 
 from mutagen.mp4 import MP4Tags
 from mutagen._vorbis import VCommentDict
+
+from typing import BinaryIO
 
 # from mutagen.id3._tags import ID3Tags
 
@@ -119,14 +120,16 @@ def write(
     copyright: str = "",
     cover: bytes | None = None,
     cover_mime: str | None = None,
-):
+) -> None:
     args = locals()
     # TODO: Figure out what codecs are sent in the manifest
     # WARN: This match is currently using placeholders
     match codec:
-        case "???flac???":
-            file = flac.FLAC(fp)
-            __write_flac(file, *args)
-        case "???aac???":
-            file = mp4.MP4(fp)
-            __write_mp4(file, *args)
+        case "flac":
+            f = flac.FLAC(fp)
+            __write_flac(f, *args)
+        case "aac":
+            f = mp4.MP4(fp)
+            __write_mp4(f, *args)
+        case _:
+            raise Exception(f"Couldn't recognize codec {codec}")

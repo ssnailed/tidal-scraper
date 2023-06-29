@@ -15,5 +15,6 @@ def clean_template(path: str, **kwargs) -> str:
 
 def log_error(template: str, **kwargs):
     with open(CONF['error_log']) as f:
-        f.write(template.format(**kwargs))
+        error = template.format(**kwargs)
+        f.write(error)
         traceback.print_exception(*sys.exc_info(), file=f)
