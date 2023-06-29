@@ -4,7 +4,7 @@ error_log = "error.log"
 # Quality can be one of "master, lossless, high and low"
 # Keep in mind that you can only get the quality included in your tidal sub
 quality = "lossless"
-user_id = 
+user_id = 188721652
 
 dest_dir = "./downloads/"
 # The following templates are passed an artist, album and track object.
