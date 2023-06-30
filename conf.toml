@@ -7,14 +7,17 @@ quality = "lossless"
 user_id =
 
 dest_dir = "./downloads/"
-# The following templates are passed an artist, album and track object.
+
+# These templates are passed their respective tidalapi objects
 # Possible attributes can be found here: https://tidalapi.netlify.app/api.html
-# The artist is derived from the album a track is in rather than the track itself.
-album_dir = "{artist.name}/{album.name}/"
+album_dir = "{album.artist.name}/{album.name}/"
 playlist_dir = "{playlist.name}/"
-track_name = "{track.track_num}: {track.name}"
+# Rather than receiving an artist, the track receives both "albumartist" and a "trackartist"
+track_name = "{track.track_num}: {track.artist.name} - {track.name}"
 
 # One of 160, 320, 480, 640, 750, 1080
 playlist_image_size = 1080
 # One of 80, 160, 320, 640, 1280
 album_image_size = 1280
+
+debug = false

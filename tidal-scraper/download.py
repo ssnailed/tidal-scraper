@@ -60,10 +60,14 @@ def download_track(track: tidalapi.Track, dest: str) -> None:
     album = track.album
     assert album
     print(f"Starting {album.artist.name} - {track.name}")
-    dest += clean_template(conf["track_name"], track=track)
+    dest += clean_template(
+        conf["track_name"],
+        track=track,
+    )
     http_failures = 0
     while http_failures <= 3:
         try:
+            print("running")
             stream = track.stream()
             manifest = json.loads(b64decode(stream.manifest))
             if conf["debug"]:
@@ -76,8 +80,10 @@ def download_track(track: tidalapi.Track, dest: str) -> None:
                 else:
                     dest += ".m4a"
             else:
-                for ext in (x for x in extensions if x != ".mp4"):
-                    dest += ext
+                for ext in extensions:
+                    if ext in url:
+                        dest += ext
+                        break
             if os.path.exists(dest) and conf["skip_downloaded"]:
                 print(f"Skipping track")
                 return
@@ -105,7 +111,9 @@ def download_track(track: tidalapi.Track, dest: str) -> None:
             break
         except requests.HTTPError:
             http_failures += 1
-        except:
+        except KeyboardInterrupt as e:
+            raise e
+        except Exception as e:
             log_error(
                 "Failure while downloading {artist} - {track}",
                 artist=album.artist.name,
@@ -129,7 +137,6 @@ def download_album(album: tidalapi.Album) -> None:
     dest = clean_template(
         conf["dest_dir"] + "/" + conf["album_dir"],
         album=album,
-        artist=album.artist,
     )
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     download_cover(album, dest, conf["album_image_size"])

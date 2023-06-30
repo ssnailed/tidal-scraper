@@ -2,3 +2,4 @@ git+https://github.com/tamland/python-tidal
 pycrypto
 tqdm
 mutagen
+toml

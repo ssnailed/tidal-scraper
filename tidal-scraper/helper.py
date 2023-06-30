@@ -1,6 +1,8 @@
 import re
 import os
-import tomllib
+import toml
+# TODO: wait for python to update to 3.11 for ubuntu users
+# import tomllib
 import sys
 import traceback
 
@@ -19,8 +21,10 @@ if not conf_dir:
 conf_dir += "/tidal-scraper"
 state_dir += "/tidal-scraper"
 
-with open(conf_dir + "/conf.toml", "rb") as f:
-    conf = tomllib.load(f)
+with open(conf_dir + "/conf.toml", "r") as f:
+    conf = toml.load(f)
+# with open(conf_dir + "/conf.toml", "rb") as f:
+    # conf = tomllib.load(f)
 
 
 def clean_template(path: str, **kwargs) -> str:
@@ -33,5 +37,6 @@ def clean_template(path: str, **kwargs) -> str:
 def log_error(template: str, **kwargs):
     with open(conf["error_log"], "a") as f:
         msg = template.format(**kwargs)
-        f.write(msg + "\n\n\n")
+        f.write(msg + "\n")
         traceback.format_exception(*sys.exc_info())
+        f.write("\n\n")

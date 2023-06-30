@@ -1,4 +1,4 @@
-#!/bin/env python
+#!/bin/env python3
 from download import download_album
 from state import State
 from helper import conf
