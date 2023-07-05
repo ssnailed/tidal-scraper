@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+[project]
+name = 'tidal-scraper'
+version = '1.0'
+description = 'A library to download music from tidal'
+authors = [
+    { name = "Luca Bilke", email="luca@snaile.de" }
+]
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: POSIX",
+    "Topic :: Multimedia :: Sound/Audio",
+    "Natural Language :: English",
+]
+dependencies = [
+    "pycrypto",
+    "tqdm",
+    "mutagen",
+    "tidalapi @ git+https://github.com/tamland/python-tidal@5207a3cff2af437a2d0d67b743c875a67f8d1d08",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[project.scripts]
+tidal-scraper = "tidal_scraper.cli:run"

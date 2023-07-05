@@ -1,13 +1,10 @@
 import json
 from datetime import datetime
 from tidalapi import session, user, playlist, media, album, artist
-from helper import conf, state_dir
 
 
 class State:
-    def __init__(
-        self, user_id: int, quality: str, dl_state_path: str = state_dir + "/state.json"
-    ):
+    def __init__(self, user_id: int, quality: str, dl_state_path: str):
         match quality:
             case "master":
                 q = session.Quality.master
@@ -18,11 +15,11 @@ class State:
             case "low":
                 q = session.Quality.low
             case _:
-                raise Exception("Quality misconfigured in conf.toml")
+                raise Exception("Bad Quality String")
         config = session.Config(quality=q)
         self.user_id = user_id
         self.session = session.Session(config)
-        self.favorites = user.Favorites(self.session, conf["user_id"])
+        self.favorites = user.Favorites(self.session, user_id)
         try:
             self.load_dl_state(dl_state_path)
         except:
@@ -33,7 +30,7 @@ class State:
                 "tracks": {},
             }
 
-    def login(self, auth_file: str | None = state_dir + "/auth.json") -> None:
+    def login(self, auth_file: str | None = None) -> None:
         s = self.session
         try:
             assert auth_file
@@ -84,16 +81,12 @@ class State:
 
         self._state[t][obj.id] = downloaded
 
-    def write_dl_state(self, dl_state_path: str | None = None) -> None:
-        if dl_state_path is None:
-            dl_state_path = state_dir + "/state.json"
-        with open(dl_state_path, "w") as f:
+    def write_dl_state(self, statefile: str) -> None:
+        with open(statefile, "w") as f:
             json.dump(self._state, f)
 
-    def load_dl_state(self, dl_state_path: str | None = None) -> None:
-        if dl_state_path is None:
-            dl_state_path = state_dir + "/state.json"
-        with open(dl_state_path, "r") as f:
+    def load_dl_state(self, statefile: str) -> None:
+        with open(statefile, "r") as f:
             self._state = json.load(f)
 
         assert type(self._state["albums"]) is dict[int, bool]

@@ -8,6 +8,13 @@ user_id =
 
 dest_dir = "./downloads/"
 
+# Leave empty for default state location 
+# Default location is the first valid path in this order:
+# XDG_STATE_HOME/tidal-scraper
+# XDG_CACHE_HOME/tidal-scraper
+# $HOME/.cache/tidal-scraper
+state_dir =
+
 # These templates are passed their respective tidalapi objects
 # Possible attributes can be found here: https://tidalapi.netlify.app/api.html
 album_dir = "{album.artist.name}/{album.name}/"

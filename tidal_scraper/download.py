@@ -1,5 +1,5 @@
-import metadata
-from helper import conf, extensions, clean_template, log_error
+import tidal_scraper.metadata as metadata
+from tidal_scraper.helper import extensions, clean_template, log_error, human_sleep
 
 import tidalapi
 import os
@@ -44,8 +44,6 @@ def __decrypt_file(fp: BinaryIO, key: bytes, nonce: bytes) -> None:
 
 def __download_file(url: str, fp: BinaryIO) -> str:
     with requests.get(url, stream=True) as r:
-        if conf["debug"]:
-            print(r.headers)
         r.raise_for_status()
         mime = r.headers.get("Content-Type", "")
         total_bytes = int(r.headers.get("Content-Length", 0))
@@ -56,22 +54,35 @@ def __download_file(url: str, fp: BinaryIO) -> str:
     return mime
 
 
-def download_track(track: tidalapi.Track, dest: str) -> None:
+def download_track(
+    track: tidalapi.Track,
+    conf: dict | None = None,
+    name_template: str | None = None,
+    dest_dir: str | None = None,
+    skip_dl: bool | None = None,
+    errorfile: str | None = None,
+) -> None:
     album = track.album
     assert album
+    if conf is None:
+        assert skip_dl is not None
+        assert errorfile is not None
+        assert name_template is not None
+        assert dest_dir is not None
+    else:
+        skip_dl = skip_dl or conf["skip_downloaded"]
+        errorfile = errorfile or conf["error_log"]
+        dest_dir = dest_dir or conf["dest_dir"]
+        name_template = name_template or conf["track_name"]
+
+    dest = dest_dir + clean_template(name_template, track=track)
     print(f"Starting {album.artist.name} - {track.name}")
-    dest += clean_template(
-        conf["track_name"],
-        track=track,
-    )
     http_failures = 0
     while http_failures <= 3:
         try:
             print("running")
             stream = track.stream()
             manifest = json.loads(b64decode(stream.manifest))
-            if conf["debug"]:
-                print(manifest)
             url = manifest["urls"][0]
             codec = manifest["codecs"]
             if ".mp4" in url:
@@ -84,7 +95,7 @@ def download_track(track: tidalapi.Track, dest: str) -> None:
                     if ext in url:
                         dest += ext
                         break
-            if os.path.exists(dest) and conf["skip_downloaded"]:
+            if os.path.exists(dest) and skip_dl:
                 print(f"Skipping track")
                 return
 
@@ -115,6 +126,7 @@ def download_track(track: tidalapi.Track, dest: str) -> None:
             raise e
         except Exception as e:
             log_error(
+                errorfile or "error.log",
                 "Failure while downloading {artist} - {track}",
                 artist=album.artist.name,
                 track=track.name,
@@ -123,9 +135,35 @@ def download_track(track: tidalapi.Track, dest: str) -> None:
 
 
 def download_cover(
-    obj: tidalapi.Album | tidalapi.Playlist, dest: str, size: int
+    obj: tidalapi.Album | tidalapi.Playlist,
+    conf: dict | None = None,
+    dest: str | None = None,
+    size: int | None = None,
+    skip_dl: bool | None = None,
 ) -> None:
-    if os.path.exists(dest) and conf["skip_downloaded"]:
+    if conf is None:
+        assert dest is not None
+        assert size is not None
+        assert skip_dl is not None
+    else:
+        if type(obj) is tidalapi.Album:
+            dest = clean_template(
+                conf["dest_dir"] + "/" + conf["album_dir"],
+                album=obj,
+            )
+            size = conf["album_image_size"]
+        elif type(obj) is tidalapi.Playlist:
+            dest = clean_template(
+                conf["dest_dir"] + "/" + conf["playlist_dir"],
+                playlist=obj,
+            )
+            size = conf["playlist_image_size"]
+
+        skip_dl = conf["skip_downloaded"]
+        assert dest
+        assert size
+
+    if os.path.exists(dest) and skip_dl:
         return
 
     url = obj.image(size)
@@ -133,31 +171,34 @@ def download_cover(
         __download_file(url, f)
 
 
-def download_album(album: tidalapi.Album) -> None:
+def download_album(album: tidalapi.Album, conf: dict) -> None:
     dest = clean_template(
         conf["dest_dir"] + "/" + conf["album_dir"],
         album=album,
     )
     os.makedirs(os.path.dirname(dest), exist_ok=True)
-    download_cover(album, dest, conf["album_image_size"])
+    download_cover(album, conf)
     tracks = album.tracks()
     for track in tracks:
-        download_track(track, dest)
+        download_track(track, conf, dest_dir=dest)
+        human_sleep()
 
 
-def download_playlist(playlist: tidalapi.Playlist) -> None:
+def download_playlist(playlist: tidalapi.Playlist, conf: dict) -> None:
     dest = clean_template(
         conf["dest_dir"] + "/" + conf["playlist_dir"],
         playlist=playlist,
     )
     os.makedirs(os.path.dirname(dest), exist_ok=True)
-    download_cover(playlist, dest, conf["playlist_image_size"])
+    download_cover(playlist, conf)
     tracks = playlist.tracks()
     for track in tracks:
-        download_track(track, dest)
+        download_track(track, conf, dest_dir=dest)
+        human_sleep()
 
 
-def download_artist(artist: tidalapi.Artist) -> None:
+def download_artist(artist: tidalapi.Artist, conf: dict) -> None:
     albums = artist.get_albums()
     for album in albums:
-        download_album(album)
+        download_album(album, conf)
+        human_sleep()
