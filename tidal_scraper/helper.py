@@ -14,7 +14,9 @@ def get_conf(state_dir: str | None = None, conf_file: str | None = None) -> dict
     home = os.getenv("HOME")
     assert home
 
-    conf_file = (os.getenv("XDG_CONFIG_HOME") or home + "/.config") + "/tidal-scraper/conf.toml"
+    conf_file = (
+        os.getenv("XDG_CONFIG_HOME") or home + "/.config"
+    ) + "/tidal-scraper/conf.toml"
     with open(conf_file, "rb") as f:
         conf = tomllib.load(f)
 
@@ -46,5 +48,5 @@ def log_error(logfile: str, template: str, **kwargs):
 
 
 def human_sleep() -> None:
-    t = random.randrange(10, 50) / 10
+    t = random.randrange(1000, 5000) / 1000
     time.sleep(t)

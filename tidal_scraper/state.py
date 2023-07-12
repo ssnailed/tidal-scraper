@@ -1,10 +1,23 @@
 import json
 from datetime import datetime
 from tidalapi import session, user, playlist, media, album, artist
+from helper import log_error
 
 
 class State:
-    def __init__(self, user_id: int, quality: str, dl_state_path: str):
+    def __init__(
+        self,
+        user_id: int,
+        quality: str,
+        dl_state_path: str,
+        conf: dict | None = None,
+        errorfile: str | None = None,
+    ):
+        if conf is None:
+            assert errorfile is not None
+        else:
+            errorfile = errorfile or conf["error_log"]
+
         match quality:
             case "master":
                 q = session.Quality.master
@@ -22,7 +35,11 @@ class State:
         self.favorites = user.Favorites(self.session, user_id)
         try:
             self.load_dl_state(dl_state_path)
-        except:
+        except (FileNotFoundError, IndexError, AssertionError):
+            log_error(
+                errorfile or "error.log",
+                f"Could not find state file at {dl_state_path}",
+            )
             self._state = {
                 "albums": {},
                 "artists": {},

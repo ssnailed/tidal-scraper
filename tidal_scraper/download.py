@@ -13,7 +13,6 @@ from Crypto.Util import Counter
 from typing import Tuple
 from typing import BinaryIO
 
-# MASTER_KEY = b64decode("UIlTTEMmmLfGowo/UC60x2H45W6MdGgTRfo/umg4754=")
 MASTER_KEY = (
     b"P\x89SLC&\x98\xb7\xc6\xa3\n?P.\xb4\xc7a\xf8\xe5n\x8cth\x13E\xfa?\xbah8\xef\x9e"
 )
@@ -96,16 +95,16 @@ def download_track(
                         dest += ext
                         break
             if os.path.exists(dest) and skip_dl:
-                print(f"Skipping track")
+                print("Skipping track")
                 return
 
             assert track.name and album.name
             with io.BytesIO() as b:
-                print(f"Downloading track")
+                print("Downloading track")
                 key_id = manifest.get("keyId", None)
                 mime = __download_file(url, b)
                 if key_id:
-                    print(f"Decrypting track")
+                    print("Decrypting track")
                     __decrypt_file(b, *__decode_key_id(key_id))
                     metadata.write(
                         b,
@@ -124,7 +123,7 @@ def download_track(
             http_failures += 1
         except KeyboardInterrupt as e:
             raise e
-        except Exception as e:
+        except:
             log_error(
                 errorfile or "error.log",
                 "Failure while downloading {artist} - {track}",
