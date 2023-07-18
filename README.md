@@ -1,6 +1,8 @@
 # tidal-scraper
 
 A simple command-line tool to download songs from tidal.
+This program was written for Linux, and uses several file paths that are specific to Linux.
+If there is any interest at all in making this work on Windows, I could implement that.
 
 ## Installation
 
@@ -20,3 +22,5 @@ The state directory will contain a token file called 'auth.json' used to log int
 
 ## Use at Your Own Risk!
 I will not be liable to you or anyone else for the loss of your tidal account as the result of using this script! While I have extensively tested it without any problems whatsoever, I cannot guarantee that your account will not be banned or otherwise impacted.
+
+I also haven't tested this script with "Master" quality yet since I have several issues with the MQA format.
