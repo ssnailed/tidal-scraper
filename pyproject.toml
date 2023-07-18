@@ -20,7 +20,7 @@ dependencies = [
     "pycrypto",
     "tqdm",
     "mutagen",
-    "tidalapi @ git+https://github.com/tamland/python-tidal@5207a3cff2af437a2d0d67b743c875a67f8d1d08",
+    "tidalapi",
 ]
 
 [tool.hatch.metadata]

@@ -1,34 +1,47 @@
-from tidalapi import Album, Track, Artist, Playlist
+from tidal_scraper.state import State
+from tidal_scraper.helper import get_conf, write_conf
 from tidal_scraper.download import (
     download_album,
     download_playlist,
     download_track,
     download_artist,
 )
-from tidal_scraper.state import State
-from tidal_scraper.helper import get_conf, human_sleep
+
+import sys
+from tidalapi import Album, Track, Artist, Playlist
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
+
+
+def save_state(
+    state: State, obj: Playlist | Track | Album | Artist, state_file: str
+) -> None:
+    state.set_dl_state(obj, True)
+    state.write_dl_state(state_file)
 
 
 def handle_favorites(state: State, conf: dict, args: Namespace) -> None:
     match args.obj:
         case "album":
             for album in state.favorites.albums():
-                download_album(album, conf)
-                human_sleep()
+                if not state.state_downloaded(album):
+                    download_album(album, conf)
+                    save_state(state, album, conf["state_dir"] + "/state.json")
         case "track":
             for track in state.favorites.tracks():
-                download_track(track, conf)
-                human_sleep()
+                if not state.state_downloaded(track):
+                    download_track(track, True, conf)
+                    save_state(state, track, conf["state_dir"] + "/state.json")
         case "artist":
             for artist in state.favorites.artists():
-                download_artist(artist, conf)
-                human_sleep()
+                if not state.state_downloaded(artist):
+                    download_artist(artist, conf)
+                    save_state(state, artist, conf["state_dir"] + "/state.json")
         case "playlist":
             for playlist in state.favorites.playlists():
-                download_playlist(playlist, conf)
-                human_sleep()
+                if not state.state_downloaded(playlist):
+                    download_playlist(playlist, conf)
+                    save_state(state, playlist, conf["state_dir"] + "/state.json")
 
 
 def handle_id(state: State, conf: dict, args: Namespace) -> None:
@@ -36,15 +49,19 @@ def handle_id(state: State, conf: dict, args: Namespace) -> None:
         case "album":
             album = Album(state.session, args.id)
             download_album(album, conf)
+            state.set_dl_state(album, True)
         case "track":
             track = Track(state.session, args.id)
-            download_track(track, conf)
+            download_track(track, False, conf)
+            state.set_dl_state(track, True)
         case "artist":
             artist = Artist(state.session, args.id)
             download_artist(artist, conf)
+            state.set_dl_state(artist, True)
         case "playlist":
             playlist = Playlist(state.session, args.id)
             download_playlist(playlist, conf)
+            state.set_dl_state(playlist, True)
 
 
 def run():
@@ -54,6 +71,13 @@ def run():
     )
     parser.add_argument(
         "-s", "--state", help="Directory to keep state in", type=Path, dest="state_dir"
+    )
+    parser.add_argument(
+        "-C",
+        "--create-conf",
+        action="store_true",
+        help="Create config file and exit",
+        dest="create_conf",
     )
     obj = parser.add_mutually_exclusive_group(required=True)
     obj.add_argument(
@@ -105,13 +129,22 @@ def run():
     )
     args = parser.parse_args()
 
-    conf = get_conf(args.state_dir, args.conf_file)
-    state = State(conf["user_id"], conf["quality"], conf["state_dir"])
-    state.login(conf["state_dir"] + "auth.json")
+    try:
+        conf = get_conf(args.state_dir, args.conf_file)
+    except FileNotFoundError:
+        write_conf(notify=True)
+        sys.exit()
 
-    if args.favorite:
-        handle_favorites(state, conf, args)
-    elif args.id is not None:
-        handle_id(state, conf, args)
+    state = State(conf)
+    state.load_dl_state(conf["state_dir"] + "state.json")
+    state.login()
 
-    state.write_dl_state(conf["state_dir"] + "state.json")
+    try:
+        if args.create_conf:
+            write_conf(notify=True)
+        elif args.favorite:
+            handle_favorites(state, conf, args)
+        elif args.id is not None:
+            handle_id(state, conf, args)
+    except KeyboardInterrupt:
+        print("Bye bye! Come back again!")

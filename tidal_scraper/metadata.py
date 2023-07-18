@@ -1,8 +1,6 @@
 from mutagen import flac, mp4
-
 from mutagen.mp4 import MP4Tags
 from mutagen._vorbis import VCommentDict
-
 from typing import BinaryIO
 
 

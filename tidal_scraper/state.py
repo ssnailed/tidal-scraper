@@ -1,54 +1,59 @@
+from tidal_scraper.helper import log_error
+
 import json
 from datetime import datetime
-from tidalapi import session, user, playlist, media, album, artist
-from helper import log_error
+from tidalapi import session, user, playlist, media, album, artist, Quality
 
 
 class State:
     def __init__(
         self,
-        user_id: int,
-        quality: str,
-        dl_state_path: str,
         conf: dict | None = None,
+        state_dir: str | None = None,
+        user_id: int | None = None,
+        quality: str | None = None,
         errorfile: str | None = None,
     ):
         if conf is None:
+            assert user_id is not None
+            assert quality is not None
+            assert state_dir is not None
             assert errorfile is not None
         else:
+            user_id = user_id or conf["user_id"]
+            quality = quality or conf["quality"]
+            state_dir = state_dir or conf["state_dir"]
             errorfile = errorfile or conf["error_log"]
 
         match quality:
             case "master":
-                q = session.Quality.master
+                q = Quality.master
             case "lossless":
-                q = session.Quality.lossless
+                q = Quality.lossless
             case "high":
-                q = session.Quality.high
+                q = Quality.high
             case "low":
-                q = session.Quality.low
+                q = Quality.low
             case _:
                 raise Exception("Bad Quality String")
-        config = session.Config(quality=q)
+        api_config = session.Config(quality=q)
+        self.conf = conf
         self.user_id = user_id
-        self.session = session.Session(config)
+        self.session = session.Session(api_config)
         self.favorites = user.Favorites(self.session, user_id)
-        try:
-            self.load_dl_state(dl_state_path)
-        except (FileNotFoundError, IndexError, AssertionError):
-            log_error(
-                errorfile or "error.log",
-                f"Could not find state file at {dl_state_path}",
-            )
-            self._state = {
-                "albums": {},
-                "artists": {},
-                "playlists": {},
-                "tracks": {},
-            }
+        self.errorfile = errorfile
+        self._state = {
+            "albums": {},
+            "artists": {},
+            "playlists": {},
+            "tracks": {},
+        }
 
     def login(self, auth_file: str | None = None) -> None:
         s = self.session
+        if auth_file is None:
+            assert self.conf is not None
+            auth_file = self.conf["state_dir"] + "auth.json"
         try:
             assert auth_file
             with open(auth_file, "r") as f:
@@ -75,7 +80,7 @@ class State:
                     "expiry_time": s.expiry_time.timestamp(),
                 }
                 with open(auth_file, "w") as f:
-                    json.dump(data, f)
+                    json.dump(data, fp=f, indent=4)
 
         assert self.session.check_login()
 
@@ -94,19 +99,46 @@ class State:
             case media.Track:
                 t = "tracks"
             case _:
-                raise Exception("Incorrect object type received")
+                raise Exception("Object of incorrect type received")
 
         self._state[t][obj.id] = downloaded
 
+    def state_downloaded(
+        self, obj: playlist.Playlist | media.Track | album.Album | artist.Artist
+    ) -> bool:
+        match type(obj):
+            case album.Album:
+                t = "albums"
+            case artist.Artist:
+                t = "artists"
+            case playlist.Playlist:
+                t = "playlists"
+            case media.Track:
+                t = "tracks"
+            case _:
+                raise Exception("Object of incorrect type received")
+        return self._state[t].get(str(obj.id), False)
+
     def write_dl_state(self, statefile: str) -> None:
         with open(statefile, "w") as f:
-            json.dump(self._state, f)
+            json.dump(self._state, fp=f, indent=4)
 
-    def load_dl_state(self, statefile: str) -> None:
-        with open(statefile, "r") as f:
-            self._state = json.load(f)
+    def load_dl_state(self, state_file: str) -> None:
+        try:
+            with open(state_file, "r") as f:
+                self._state = json.load(f)
 
-        assert type(self._state["albums"]) is dict[int, bool]
-        assert type(self._state["artists"]) is dict[int, bool]
-        assert type(self._state["playlists"]) is dict[int, bool]
-        assert type(self._state["tracks"]) is dict[int, bool]
+            for t in self._state.values():
+                for k, v in t.items():
+                    assert isinstance(k, (str, type(None)))
+                    assert isinstance(v, (bool, type(None)))
+        except (FileNotFoundError, IndexError, KeyError):
+            log_error(
+                self.errorfile or "error.log",
+                f"Could not find state file at {state_file}",
+            )
+        except (json.decoder.JSONDecodeError, AssertionError):
+            log_error(
+                self.errorfile or "error.log",
+                f"Statefile at {state_file} is malformed",
+            )

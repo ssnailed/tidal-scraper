@@ -1,11 +1,13 @@
 import tidal_scraper.metadata as metadata
-from tidal_scraper.helper import extensions, clean_template, log_error, human_sleep
+from tidal_scraper.helper import extensions, clean_template, log_error
 
 import tidalapi
 import os
 import json
 import requests
 import io
+import time
+import random
 from tqdm import tqdm
 from base64 import b64decode
 from Crypto.Cipher import AES
@@ -55,21 +57,23 @@ def __download_file(url: str, fp: BinaryIO) -> str:
 
 def download_track(
     track: tidalapi.Track,
+    sleep: bool,
     conf: dict | None = None,
     name_template: str | None = None,
     dest_dir: str | None = None,
-    skip_dl: bool | None = None,
+    skip_downloaded: bool | None = None,
     errorfile: str | None = None,
 ) -> None:
     album = track.album
     assert album
+    assert album.artist
     if conf is None:
-        assert skip_dl is not None
+        assert skip_downloaded is not None
         assert errorfile is not None
         assert name_template is not None
         assert dest_dir is not None
     else:
-        skip_dl = skip_dl or conf["skip_downloaded"]
+        skip_downloaded = skip_downloaded or conf["skip_downloaded"]
         errorfile = errorfile or conf["error_log"]
         dest_dir = dest_dir or conf["dest_dir"]
         name_template = name_template or conf["track_name"]
@@ -79,7 +83,6 @@ def download_track(
     http_failures = 0
     while http_failures <= 3:
         try:
-            print("running")
             stream = track.stream()
             manifest = json.loads(b64decode(stream.manifest))
             url = manifest["urls"][0]
@@ -94,8 +97,11 @@ def download_track(
                     if ext in url:
                         dest += ext
                         break
-            if os.path.exists(dest) and skip_dl:
-                print("Skipping track")
+            if os.path.exists(dest) and skip_downloaded:
+                print("Skipping track\n")
+                if sleep:
+                    t = random.randrange(750, 1500) / 1000
+                    time.sleep(t)
                 return
 
             assert track.name and album.name
@@ -118,12 +124,17 @@ def download_track(
                     data = b.getvalue()
                     f.write(data)
             print()
+            if sleep:
+                t = random.randrange(1000, 5000) / 1000
+                time.sleep(t)
             break
         except requests.HTTPError:
             http_failures += 1
+            t = random.randrange(10000, 20000) / 1000
+            time.sleep(t)
         except KeyboardInterrupt as e:
             raise e
-        except:
+        except Exception:
             log_error(
                 errorfile or "error.log",
                 "Failure while downloading {artist} - {track}",
@@ -179,8 +190,7 @@ def download_album(album: tidalapi.Album, conf: dict) -> None:
     download_cover(album, conf)
     tracks = album.tracks()
     for track in tracks:
-        download_track(track, conf, dest_dir=dest)
-        human_sleep()
+        download_track(track, True, conf, dest_dir=dest)
 
 
 def download_playlist(playlist: tidalapi.Playlist, conf: dict) -> None:
@@ -192,12 +202,10 @@ def download_playlist(playlist: tidalapi.Playlist, conf: dict) -> None:
     download_cover(playlist, conf)
     tracks = playlist.tracks()
     for track in tracks:
-        download_track(track, conf, dest_dir=dest)
-        human_sleep()
+        download_track(track, True, conf, dest_dir=dest)
 
 
 def download_artist(artist: tidalapi.Artist, conf: dict) -> None:
     albums = artist.get_albums()
     for album in albums:
         download_album(album, conf)
-        human_sleep()
