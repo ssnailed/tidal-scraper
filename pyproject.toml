@@ -4,9 +4,9 @@ build-backend = "hatchling.build"
 [project]
 name = 'tidal-scraper'
 version = '1.0'
-description = 'A library to download music from tidal'
+description = 'A simple command-line tool to download songs from tidal'
 authors = [
-    { name = "Luca Bilke", email="luca@snaile.de" }
+    { name = "snailed", email="pypi@snaile.de" }
 ]
 requires-python = ">=3.11"
 classifiers = [
